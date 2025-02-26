@@ -1,0 +1,14 @@
+[2025-02-25 16:34:41.834] [info] Loaded model double_pendulum from file Models/DoublePendulum.osim
+[2025-02-25 16:34:41.837] [warning] Couldn't find file 'cylinder.vtp'.
+[2025-02-25 16:34:41.838] [warning] Couldn't find file 'sphere.vtp'.
+[2025-02-25 16:34:41.839] [warning] Couldn't find file 'cylinder.vtp'.
+[2025-02-25 16:34:41.840] [warning] Couldn't find file 'sphere.vtp'.
+[2025-02-25 16:42:21.548] [info] Loaded model double_pendulum from file Models/DoublePendulum/DoublePendulum.osim
+[2025-02-25 16:42:29.266] [info] Loaded model double_pendulum from file Models/DoublePendulum/DoublePendulum.osim
+[2025-02-25 16:46:03.085] [info] Loaded model double_pendulum from file Models/DoublePendulum/DoublePendulum.osim
+[2025-02-25 16:47:21.964] [info] Loaded model double_pendulum from file Models/DoublePendulum/DoublePendulum.osim
+[2025-02-25 16:47:56.793] [info] Loaded model double_pendulum from file Models/DoublePendulum/DoublePendulum.osim
+[2025-02-25 16:48:14.309] [info] Loaded model double_pendulum from file Models/DoublePendulum/DoublePendulum.osim
+[2025-02-25 16:50:01.886] [info] Loaded model double_pendulum from file Models/DoublePendulum/DoublePendulum.osim
+[2025-02-25 17:00:57.695] [info] Loaded model double_pendulum from file Models/DoublePendulum/DoublePendulum.osim
+[2025-02-25 17:02:01.155] [info] Loaded model double_pendulum from file Models/DoublePendulum/DoublePendulum.osim
