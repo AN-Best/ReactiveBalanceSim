@@ -1,6 +1,6 @@
 import opensim
-from cyipopt import minimize_ipopt
 import numpy as np
+
 
 #Load the Model
 Model = opensim.Model("Models/DoublePendulum/DoublePendulum.osim")
@@ -11,7 +11,6 @@ Nstates = Model.getNumStateVariables()
 Ncontrols = Model.getNumControls()
 Ncoords = Model.getNumCoordinates()
 model_act = Model.getActuators()
-print(model_act)
 Nactuators = model_act.getSize()
 
 #Setup times for collocation points
@@ -21,19 +20,16 @@ h = duration/N
 dc_time = h*np.arange(0,N-1,1)
 
 #Create dictionary to pass to the solver
-class structype():
-    pass
-
-auxdata = structype()
-auxdata.Model = Model
-auxdata.State = State
-auxdata.time = dc_time
-auxdata.N = N
-auxdata.h = h
-auxdata.Nstates = Nstates
-auxdata.Ncontrols = Ncontrols
-auxdata.Ncoords = Ncoords
-auxdata.Nactuators = Nactuators
+auxdata = dict()
+auxdata['Model'] = Model
+auxdata['State'] = State
+auxdata['time'] = dc_time
+auxdata['N'] = N
+auxdata['h'] = h
+auxdata['Nstates'] = Nstates
+auxdata['Ncontrols'] = Ncontrols
+auxdata['Ncoords'] = Ncoords
+auxdata['Nactuators'] = Nactuators
 
 #Formulate initail guess
 X0 = np.zeros(((Nstates+Ncontrols)*N,1))
@@ -44,9 +40,9 @@ for i in range(N):
 
 #Define the objective function
 def objective(X,auxdata):
-    Nstates = auxdata.Nstates
-    Ncontrols = auxdata.Ncontrols
-    N = auxdata.N
+    Nstates = auxdata['Nstates']
+    Ncontrols = auxdata['Ncontrols']
+    N = auxdata['N']
 
     #Extract states and controls
     states = np.zeros((N,Nstates))
@@ -57,7 +53,7 @@ def objective(X,auxdata):
         controls[i,:] = X[N*Nstates + i*Ncontrols:N*Nstates + (i+1)*Ncontrols,0]
 
     #Calculate the objective function
-    Goal = np.pi*np.ones((N,Nstates))
+    Goal = (np.pi/2)*np.ones((N,Nstates))
     J = np.sum(np.sum(Goal-states)**2)
 
     return J
@@ -65,12 +61,12 @@ def objective(X,auxdata):
 
 #Define the constraints
 def constraints(X,auxdata):
-    Nstates = auxdata.Nstates
-    Ncontrols = auxdata.Ncontrols
-    N = auxdata.N
-    Model = auxdata.Model
+    Nstates = auxdata['Nstates']
+    Ncontrols = auxdata['Ncontrols']
+    N = auxdata['N']
+    Model = auxdata['Model']
     State = Model.initSystem()
-    h = auxdata.h
+    h = auxdata['h']
 
     #Extract states and controls
     states = np.zeros((N,Nstates))
@@ -83,8 +79,16 @@ def constraints(X,auxdata):
     #Query OpenSim for the state derivatives
     x_dot = np.zeros((N-1,Nstates))
     for i in range(N-1):
-        Model.setStateValues
-        
+        #Update the state
+        for j in range(Nstates):
+            State.updY().set(j,states[i,j])
+        #Update the control
+        for k in range(Ncontrols):
+            State.updU().set(k,controls[i,k])
+        #Compute state derivative
+        Model.computeStateVariableDerivatives(State)
+        for m in range(Nstates):
+            x_dot[i,m] = State.getYDot().get(m)
 
     #Use backward euler to find derivative of collocation states
     states_dot = np.zeros((N-1,Nstates))
@@ -93,13 +97,12 @@ def constraints(X,auxdata):
 
     #Calculate the constraint violations
     C_Matrix = states_dot - x_dot
-    C = np.reshape(C_Matrix,(N-1)*Nstates)
+    C = np.reshape(C_Matrix,((N-1)*Nstates,1))
 
     return C
 
 #Test Objective and Constraint Functions
 J_test = objective(X0,auxdata)
-print(J_test)
 C_test = constraints(X0,auxdata)
     
 
