@@ -79,6 +79,7 @@ par_map[iZZ2] = 2.0
 def obj(free):
     return free[-1]
 
+
 def obj_grad(free):
     grad = np.zeros_like(free)
     grad[-1] = 1.0
