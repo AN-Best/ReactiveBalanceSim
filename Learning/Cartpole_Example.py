@@ -148,7 +148,6 @@ _ = problem.plot_trajectories(solution)
 
 
 # Animate
-
 state_sol, _, _, h_var = parse_free(solution, len(state_symbols),
         len(specified_symbols),num_nodes, variable_duration=True)
 state_sol1 = state_sol.T[::4, :]
@@ -241,9 +240,5 @@ def animate(i):
 
 anim = animation.FuncAnimation(fig, animate, frames=num_nodes,
                                interval=solution[-1]*1000.0 * 4)
-
-#fig, ax, line1, line2, recht = animate_pendulum(times, P1_x, P1_y, P2_x, P2_y)
-
-#animate(50)
 
 plt.show()
