@@ -241,9 +241,9 @@ system.add_actuators(me.TorqueActuator(uL,W.z,HAT,P),
                      me.TorqueActuator(uLH,W.z,P,LT),
                      me.TorqueActuator(uLK,W.z,LT,LS),
                      me.TorqueActuator(uLA,W.z,LS,LF))
-#Ground Reaction Force
 
 
+system.form_eoms(explicit_kinematics = True)
 
 
 
