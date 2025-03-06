@@ -242,10 +242,9 @@ system.add_actuators(me.TorqueActuator(uL,W.z,HAT,P),
                      me.TorqueActuator(uLK,W.z,LT,LS),
                      me.TorqueActuator(uLA,W.z,LS,LF))
 
-
 system.form_eoms(explicit_kinematics = True)
-
-
+mass_matrix = system.mass_matrix_full
+forcing_vector = system.forcing_full
 
 
 
