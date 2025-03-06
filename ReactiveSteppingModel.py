@@ -25,7 +25,7 @@ vPx, vPy, vPz, vL, vRH, vRK, vRA, vLH, vLK, vLA = me.dynamicsymbols('vPx vPy vPz
 uL, uRH, uRK, uRA, uLH, uLK, uLA = me.dynamicsymbols('uL uRH uRK uRA uLH uLK uLA')
 # Create Constants
 mFoot,mShank,mThigh,mPelvis,mHAT = sm.symbols('mFoot mShank mThigh mPelvis mHAT')
-Ifoot,Ishank,Ithigh,Ipelvis,IHAT = sm.symbols('Ifoot Ishank Ithigh Ipelvis IHAT')
+Ifoot,Ishank,Ithigh,Ipelvis,IHAT = sm.symbols('Ifoot Ishank Ithigh Ipelvis Ihat')
 hfoot,hshank,hthigh,hpelvis,hHAT = sm.symbols('hfoot hshank hthigh hpelvis hHAT')
 cfootx,cfooty,cshank,cthigh,cpelvis,cHAT = sm.symbols('cfootx cfooty cshank cthigh cpelvis cHAT')
 Lfoot = sm.symbols('Lfoot')   
@@ -246,7 +246,7 @@ system.form_eoms(explicit_kinematics = True)
 mass_matrix = system.mass_matrix_full
 forcing_vector = system.forcing_full
 
-
+#
 
 
 
