@@ -246,7 +246,6 @@ system.form_eoms(explicit_kinematics = True)
 mass_matrix = system.mass_matrix_full
 forcing_vector = system.forcing_full
 
-#
 
 
 
