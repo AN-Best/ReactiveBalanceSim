@@ -3,6 +3,8 @@ import sympy as sy
 from sympy import symbols, exp, acos, pi, Function, Abs
 import sympy.physics.mechanics as me
 from pydy.viz import VisualizationFrame, Cylinder, Sphere
+from collections import OrderedDict
+import yaml
 
 time_symbol = symbols('t',real=True)
 me.dynamicsymbols._t = time_symbol
@@ -551,6 +553,20 @@ def derive_equations_of_motion():
 
     return (mass_matrix, forcing_vector, kane, constants, coordinates, speeds,
             specified, visualization_frames, ground, origin, segments)
+
+def load_constants(constants, path):
+    """Parses a yaml file and builds an ordered dictionary that maps SymPy
+    symbols to floats."""
+
+    with open(path, 'r') as f:
+        constant_values_dict = yaml.load(f, Loader=yaml.SafeLoader)
+
+    res = OrderedDict()
+
+    for c in constants:
+        res[c] = constant_values_dict[c.name]
+
+    return res
 
 
 
