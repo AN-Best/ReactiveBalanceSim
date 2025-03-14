@@ -5,7 +5,6 @@ from pydy.codegen.ode_function_generators import generate_ode_function
 from pydy.viz import Scene
 from collections import OrderedDict
 import yaml
-import os
 
 #Derive the equations of motion
 
@@ -46,8 +45,6 @@ args = (np.zeros(len(specified)), np.array(list(constant_values.values())))
 time_vector = np.linspace(0.0, 10.0, num=1000)
 initial_conditions = np.zeros(len(coordinates + speeds))
 initial_conditions[1] = 2.0  # set hip above ground
-initial_conditions[4] = np.deg2rad(5.0)  # right hip angle
-initial_conditions[7] = -np.deg2rad(5.0)  # left hip angle
 trajectories = odeint(rhs, initial_conditions, time_vector, args=args)
 
 scene = Scene(ground, origin, *visualization_frames)
