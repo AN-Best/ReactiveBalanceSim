@@ -25,7 +25,11 @@ rhs = generate_ode_function(
     specifieds_arg_type='array',
 )
 
-args = (np.zeros(len(specified)), np.array(list(constant_values.values())))
+specs = np.zeros(len(specified))
+specs[2] = 0.5 #Sled velocity
+
+args = (specs, np.array(list(constant_values.values())))
+
 
 time_vector = np.linspace(0.0, 10.0, num=1000)
 initial_conditions = np.zeros(len(coordinates + speeds))

@@ -20,6 +20,7 @@ def time_varying(sym_string):
     except TypeError:
         return funcs(time_symbol)
     
+
 #Generic Body Segment
 class BodySegment(object):
     viz_sphere_radius = 0.07
@@ -386,7 +387,7 @@ class FootSegment(BodySegment):
         return viz_frames
 
 
-def contact_force(point, ground, origin):
+def contact_force(point, ground, origin, sled_velocity):
     """Returns a contact force vector acting on the given point made of
     friction along the contact surface and elastic force in the vertical
     direction.
@@ -420,7 +421,7 @@ def contact_force(point, ground, origin):
 
     penetration = (Abs(y_location) - y_location) / 2
 
-    velocity = point.vel(ground)
+    velocity = point.vel(ground) - sled_velocity*ground.x
 
     # The addition of "- y_location" here adds a small linear term to the
     # cubic stiffness and creates a light attractive force torwards the
@@ -429,7 +430,7 @@ def contact_force(point, ground, origin):
     contact_stiffness, contact_damping = symbols('kc, cc', **sym_kwargs)
     contact_friction_coefficient, friction_scaling_factor = \
         symbols('mu, vs', **sym_kwargs)
-
+    
     vertical_force = (contact_stiffness * penetration ** 3 - y_location) * \
         (1 - contact_damping * velocity.dot(ground.y))
 
@@ -465,9 +466,15 @@ def derive_equations_of_motion():
     bodies = []
     visualization_frames = []
 
+    # Add sled velocity
+    sled_velocity = time_varying('v_sled')
+    specified.append(sled_velocity)
+
     for label in sorted(segment_descriptions.keys()):
 
         segment_class, desc, joint_desc = segment_descriptions[label]
+                
+
 
         if label == 'A':  # trunk
             parent_reference_frame = ground
@@ -514,14 +521,17 @@ def derive_equations_of_motion():
         if label == 'E' or label == 'H':  # foot
             external_forces_torques.append((segment.heel,
                                             contact_force(segment.heel,
-                                                          ground, origin)))
+                                                          ground, origin,
+                                                          sled_velocity)))
             external_forces_torques.append((segment.toe,
                                             contact_force(segment.toe,
-                                                          ground, origin)))
+                                                          ground, origin,
+                                                           sled_velocity)))
         else:
             external_forces_torques.append((segment.joint,
                                             contact_force(segment.joint,
-                                                          ground, origin)))
+                                                          ground, origin,
+                                                          sled_velocity)))
 
         # bodies
         bodies.append(segment.rigid_body)
@@ -531,7 +541,7 @@ def derive_equations_of_motion():
         # add contact force for trunk mass center.
     external_forces_torques.append((segments[0].mass_center,
                                     contact_force(segments[0].mass_center,
-                                                  ground, origin)))
+                                                  ground, origin,sled_velocity)))
     # add hand of god
     # TODO : move this into segment.py
     trunk_force_x, trunk_force_y = time_varying('Fax, Fay')

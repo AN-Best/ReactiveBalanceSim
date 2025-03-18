@@ -7,6 +7,7 @@ from symmeplot.matplotlib import Scene3D
 import matplotlib.pyplot as plt
 import sympy as sm
 import os
+
 #Derive the equations of motion
 (mass_matrix, forcing_vector, kane, constants, coordinates, speeds, specified,
  visualization_frames, ground, origin, segments) = \
@@ -44,12 +45,13 @@ num_states = len(states)
 #h = left ankle 
 qax, qay, qa, qb, qc, qd, qe, qf, qg, qh = coordinates
 uax, uay, ua, ub, uc, ud, ue, uf, ug, uh = speeds
-Fax, Fay, Ta, Tb, Tc, Td, Te, Tf, Tg, Th = specified
+Fax, Fay,v_sled , Ta, Tb, Tc, Td, Te, Tf, Tg, Th = specified
 
 #Set external torso force and torque to zero
 traj_map = {Fax: np.zeros(num_nodes),
             Fay: np.zeros(num_nodes),
-            Ta: np.zeros(num_nodes)}
+            Ta: np.zeros(num_nodes),
+            v_sled: np.zeros(num_nodes)}
 
 #Add Bounds
 bounds = {
@@ -192,19 +194,19 @@ def animate(fname='animation.gif'):
 
     # show ground reaction force vectors at the heels and toes, scaled to
     # visually reasonable length
-    scene.add_vector(contact_force(rfoot.toe, ground, origin)/600.0,
+    scene.add_vector(contact_force(rfoot.toe, ground, origin,v_sled)/600.0,
                      rfoot.toe, color="tab:blue")
-    scene.add_vector(contact_force(rfoot.heel, ground, origin)/600.0,
+    scene.add_vector(contact_force(rfoot.heel, ground, origin,v_sled)/600.0,
                      rfoot.heel, color="tab:blue")
-    scene.add_vector(contact_force(lfoot.toe, ground, origin)/600.0,
+    scene.add_vector(contact_force(lfoot.toe, ground, origin,v_sled)/600.0,
                      lfoot.toe, color="tab:blue")
-    scene.add_vector(contact_force(lfoot.heel, ground, origin)/600.0,
+    scene.add_vector(contact_force(lfoot.heel, ground, origin,v_sled)/600.0,
                      lfoot.heel, color="tab:blue")
 
     scene.lambdify_system(states + specified + constants)
     gait_cycle = np.vstack((
         xs,  # q, u shape(2n, N)
-        np.zeros((3, len(times))),  # Fax, Fay, Ta (hand of god), shape(3, N)
+        np.zeros((4, len(times))),  # Fax, Fay, Ta (hand of god), v_sled shape(4, N)
         rs,  # r, shape(q, N)
         np.repeat(np.atleast_2d(np.array(list(par_map.values()))).T,
                   len(times), axis=1),  # p, shape(r, N)
