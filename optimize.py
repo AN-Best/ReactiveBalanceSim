@@ -2,7 +2,7 @@ import derive
 from derive import time_symbol, contact_force
 import numpy as np
 from opty import Problem
-from opty.utils import f_minus_ma
+from opty.utils import f_minus_ma, parse_free, create_objective_function
 from symmeplot.matplotlib import Scene3D
 import matplotlib.pyplot as plt
 import sympy as sm
@@ -14,18 +14,15 @@ import os
     derive.derive_equations_of_motion()
 
 eom = f_minus_ma(mass_matrix,forcing_vector,coordinates+speeds)
-print(sm.count_ops(eom))
 
 #Pull in the Constants
 par_map = derive.load_constants(constants,'example_constants.yml')
 
 #Discretization characteristics
-speed = 0.0 # m/s
 num_nodes = 50
 h = sm.symbols('h', real=True, positive=True)
 duration = (num_nodes - 1)*h
-
-states = coordinates + speeds 
+states = coordinates + speeds
 num_states = len(states)
 
 #Pull out the coordinates and speeds
@@ -43,76 +40,91 @@ qax, qay, qa, qb, qc, qd, qe, qf, qg, qh = coordinates
 uax, uay, ua, ub, uc, ud, ue, uf, ug, uh = speeds
 Fax, Fay,v_sled , Ta, Tb, Tc, Td, Te, Tf, Tg, Th = specified
 
-#Set external torso force and torque to zero
+
+#Create sled velocity
+sled_velocity = np.zeros(num_nodes)
+sled_velocity = np.linspace(0,2,num_nodes)
+
+#Set external torso force and torque to zero and add sled velocity
 traj_map = {Fax: np.zeros(num_nodes),
             Fay: np.zeros(num_nodes),
             Ta: np.zeros(num_nodes),
-            v_sled: np.zeros(num_nodes)}
+            v_sled: sled_velocity}
 
 #Add Bounds
-bounds = {
-    qax: (0.0, 0.0),
-    qay: (0.5, 2.0),
-    qa: np.deg2rad((0.0, 0.0)),
-    uax: (-0.1, 0.1),
-    uay: (-0.1, 0.1),
-}
-
+bounds = {}
 #lumbar
-bounds.update({k: (-np.deg2rad(1.0), np.deg2rad(1.0))
+bounds.update({k: (-np.deg2rad(30.0), np.deg2rad(30.0))
                for k in [qb]})
 # hip
-bounds.update({k: (-np.deg2rad(1.0), np.deg2rad(1.0))
+bounds.update({k: (-np.deg2rad(40.0), np.deg2rad(40.0))
                for k in [qc, qf]})
 # knee
-bounds.update({k: (-np.deg2rad(1.0), 0.0)
+bounds.update({k: (-np.deg2rad(60.0), 0.0)
                for k in [qd, qg]})
 # ankle
-bounds.update({k: (-np.deg2rad(1.0), np.deg2rad(1.0))
+bounds.update({k: (-np.deg2rad(30.0), np.deg2rad(30.0))
                for k in [qe, qh]})
 # all rotational speeds
-bounds.update({k: (-np.deg2rad(1.0), np.deg2rad(1.0))
+bounds.update({k: (-np.deg2rad(400.0), np.deg2rad(400.0))
                for k in [ua, ub, uc, ud, ue, uf, ug, uh]})
 # all joint torques
 bounds.update({k: (-100.0, 100.0)
                for k in [Tb, Tc, Td, Te, Tf, Tg, Th]})
 
-#Instance Constraints
+#Load initial guess (also used for initial conditions)
+fname = f'stand_50_nodes_good.csv'
+initial_guess = np.loadtxt(fname)
+initial_guess = initial_guess[0:-1]
 
+#parse out the initial conditions
+x_IG, r_IG, _ = parse_free(initial_guess,num_states,len(specified)-4,num_nodes,False)
+
+initial_state = x_IG[:,0]
+initial_specified = r_IG[:,0]
+
+#Set initial condition constraints
 instance_constraints = (
     qax.func(0*h) - 0.0,
-    qax.func(duration) - speed*duration,
-    qay.func(0*h) - qay.func(duration),
-    qa.func(0*h) - qa.func(duration),
-    qb.func(0*h) - qb.func(duration),
-    qc.func(0*h) - qf.func(duration),
-    qd.func(0*h) - qg.func(duration),
-    qe.func(0*h) - qh.func(duration),
-    qf.func(0*h) - qc.func(duration),
-    qg.func(0*h) - qd.func(duration),
-    qh.func(0*h) - qe.func(duration),
-    uax.func(0*h) - uax.func(duration),
-    uay.func(0*h) - uay.func(duration),
-    ua.func(0*h) - ua.func(duration),
-    ub.func(0*h) - ub.func(duration),
-    uc.func(0*h) - uf.func(duration),
-    ud.func(0*h) - ug.func(duration),
-    ue.func(0*h) - uh.func(duration),
-    uf.func(0*h) - uc.func(duration),
-    ug.func(0*h) - ud.func(duration),
-    uh.func(0*h) - ue.func(duration),  
+    qay.func(0*h) - initial_state[1],
+    qa.func(0*h) - 0.0,
+    qb.func(0*h) - 0.0,
+    qc.func(0*h) - 0.0,
+    qd.func(0*h) - 0.0,
+    qe.func(0*h) - 0.0,
+    qf.func(0*h) - 0.0,
+    qg.func(0*h) - 0.0,
+    qh.func(0*h) - 0.0,
+    uax.func(0*h) - 0.0,
+    uay.func(0*h) - 0.0,
+    ua.func(0*h) - 0.0,
+    ub.func(0*h) - 0.0,
+    uc.func(0*h) - 0.0,
+    ud.func(0*h) - 0.0,
+    ue.func(0*h) - 0.0,
+    uf.func(0*h) - 0.0,
+    ug.func(0*h) - 0.0,
+    uh.func(0*h) - 0.0,
+    Tb.func(0*h) - 0.0,
+    Tc.func(0*h) - 0.0,
+    Td.func(0*h) - 0.0,
+    Te.func(0*h) - 0.0,
+    Tf.func(0*h) - 0.0,
+    Tg.func(0*h) - 0.0,
+    Th.func(0*h) - 0.0,
 )
 
 
-#Objective function and gradient
 def obj(free):
     """Minimize the sum of the squares of the control torques."""
-    T = free[num_states*num_nodes:]
+    _, T, _ = parse_free(free,num_states,len(specified)-4,num_nodes,False)
     return np.sum(T**2)
 
+test_obj = obj(initial_guess)
+print(obj)
 
 def obj_grad(free):
-    T = free[num_states*num_nodes:]
+    _, T, _ = parse_free(free,num_states,len(specified)-4,num_nodes,False)
     grad = np.zeros_like(free)
     grad[num_states*num_nodes:] = 2.0*T
     return grad
@@ -133,21 +145,19 @@ prob = Problem(
     time_symbol=time_symbol,
     parallel=True    
 )
-
-#Set an initial guess
-initial_guess = np.zeros(prob.num_free)
-initial_guess[1] = 1.24 - 0.05
+    
 
 #Optimize
 solution, info = prob.solve(initial_guess)
 
 #Pull out solution trajectory
-xs, rs = prob.parse_free(solution)
+xs, rs, _, h_val = prob.parse_free(solution)
 
-times = np.linspace(0.0, 5.0, num=num_nodes)
+times = np.linspace(0.0, (num_nodes - 1)*h_val, num=num_nodes)
 if info['status'] in (0, 1):
-    np.savetxt(f'stand_{num_nodes}_nodes_solution.csv', solution,
+    np.savetxt(f'perturb_{num_nodes}_nodes_solution.csv', solution,
                fmt='%.2f')
+    
 
 def animate(fname='animation.gif'):
     trunk, pelvis, rthigh, rshank, rfoot, lthigh, lshank, lfoot = segments
@@ -215,7 +225,7 @@ def animate(fname='animation.gif'):
     ax.set_aspect('equal')
 
     ani = scene.animate(lambda i: gait_cycle[:, i], frames=len(times),
-                        interval=0.1*1000)
-    ani.save(fname, fps=int(1/0.1))
+                        interval=h_val*1000)
+    ani.save(fname, fps=int(1/h_val))
 
-animation = animate('quiet_stance.gif')
+animation = animate('perturb.gif')
