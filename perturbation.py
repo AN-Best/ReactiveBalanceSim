@@ -18,12 +18,17 @@ eom = f_minus_ma(mass_matrix,forcing_vector,coordinates+speeds)
 #Pull in the Constants
 par_map = derive.load_constants(constants,'example_constants.yml')
 
+#To allow time to be available
+delt = sm.Function('delt', real=True)(time_symbol)
+eom = eom.col_join(sm.Matrix([delt.diff(time_symbol) - 1]))
+
+states = coordinates + speeds + [delt]
+num_states = len(states)
+
 #Discretization characteristics
 num_nodes = 50
 h = sm.symbols('h', real=True, positive=True)
 duration = (num_nodes - 1)*h
-states = coordinates + speeds
-num_states = len(states)
 
 #Pull out the coordinates and speeds
 #ax = lumbar x
@@ -40,10 +45,9 @@ qax, qay, qa, qb, qc, qd, qe, qf, qg, qh = coordinates
 uax, uay, ua, ub, uc, ud, ue, uf, ug, uh = speeds
 Fax, Fay,v_sled , Ta, Tb, Tc, Td, Te, Tf, Tg, Th = specified
 
-
 #Create sled velocity
 sled_velocity = np.zeros(num_nodes)
-sled_velocity = np.linspace(0,2,num_nodes)
+sled_velocity = np.linspace(0,0.3,num_nodes)
 
 #Set external torso force and torque to zero and add sled velocity
 traj_map = {Fax: np.zeros(num_nodes),
@@ -52,7 +56,15 @@ traj_map = {Fax: np.zeros(num_nodes),
             v_sled: sled_velocity}
 
 #Add Bounds
-bounds = {}
+bounds = {
+    h: (0.001, 0.1),
+    delt: (0.0, 10.0),
+    qax: (-10.0, 10.0),
+    qay: (0.5, 1.5),
+    qa: np.deg2rad((-60.0, 60.0)),
+    uax: (-10.0, 10.0),
+    uay: (-10.0, 10.0),
+}
 #lumbar
 bounds.update({k: (-np.deg2rad(30.0), np.deg2rad(30.0))
                for k in [qb]})
@@ -75,16 +87,16 @@ bounds.update({k: (-100.0, 100.0)
 #Load initial guess (also used for initial conditions)
 fname = f'stand_50_nodes_good.csv'
 initial_guess = np.loadtxt(fname)
-initial_guess = initial_guess[0:-1]
 
 #parse out the initial conditions
-x_IG, r_IG, _ = parse_free(initial_guess,num_states,len(specified)-4,num_nodes,False)
+x_IG, r_IG, _, _ = parse_free(initial_guess,num_states,len(specified)-4,num_nodes,True)
 
 initial_state = x_IG[:,0]
 initial_specified = r_IG[:,0]
 
 #Set initial condition constraints
 instance_constraints = (
+    delt.func(0*h) - 0.0,
     qax.func(0*h) - 0.0,
     qay.func(0*h) - initial_state[1],
     qa.func(0*h) - 0.0,
@@ -105,29 +117,24 @@ instance_constraints = (
     uf.func(0*h) - 0.0,
     ug.func(0*h) - 0.0,
     uh.func(0*h) - 0.0,
-    Tb.func(0*h) - 0.0,
-    Tc.func(0*h) - 0.0,
-    Td.func(0*h) - 0.0,
-    Te.func(0*h) - 0.0,
-    Tf.func(0*h) - 0.0,
-    Tg.func(0*h) - 0.0,
-    Th.func(0*h) - 0.0,
 )
 
 
-def obj(free):
-    """Minimize the sum of the squares of the control torques."""
-    _, T, _ = parse_free(free,num_states,len(specified)-4,num_nodes,False)
-    return np.sum(T**2)
+objective = sm.Integral(Tb**2 + Tc**2 + Td**2 + Te**2 + Tf**2 + Tg**2 + Th**2,time_symbol)
 
-test_obj = obj(initial_guess)
-print(obj)
+state_symbols = (qax, qay, qa, qb, qc, qd, qe, qf, qg, qh,
+                 uax, uay, ua, ub, uc, ud, ue, uf, ug, uh)
+specified_symbols = (Tb, Tc, Td, Te, Tf, Tg, Th)
 
-def obj_grad(free):
-    _, T, _ = parse_free(free,num_states,len(specified)-4,num_nodes,False)
-    grad = np.zeros_like(free)
-    grad[num_states*num_nodes:] = 2.0*T
-    return grad
+sm.pprint(objective)
+
+obj, obj_grad = create_objective_function(objective,
+                                          state_symbols,
+                                          specified_symbols,
+                                          [],
+                                          num_nodes,
+                                          h,
+                                          time_symbol=time_symbol)
 
 #Create the problem
 prob = Problem(
