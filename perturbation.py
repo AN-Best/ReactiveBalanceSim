@@ -18,17 +18,13 @@ eom = f_minus_ma(mass_matrix,forcing_vector,coordinates+speeds)
 #Pull in the Constants
 par_map = derive.load_constants(constants,'example_constants.yml')
 
-#To allow time to be available
-delt = sm.Function('delt', real=True)(time_symbol)
-eom = eom.col_join(sm.Matrix([delt.diff(time_symbol) - 1]))
-
-states = coordinates + speeds + [delt]
+states = coordinates + speeds 
 num_states = len(states)
 
 #Discretization characteristics
-num_nodes = 50
-h = sm.symbols('h', real=True, positive=True)
-duration = (num_nodes - 1)*h
+duration = 2.0
+h = 0.005
+num_nodes = int(duration/h) + 1
 
 #Pull out the coordinates and speeds
 #ax = lumbar x
@@ -47,18 +43,17 @@ Fax, Fay,v_sled , Ta, Tb, Tc, Td, Te, Tf, Tg, Th = specified
 
 #Create sled velocity
 sled_velocity = np.zeros(num_nodes)
-sled_velocity = np.linspace(0,0.3,num_nodes)
+sled_velocity = np.linspace(0,-0.5,num_nodes)
 
 #Set external torso force and torque to zero and add sled velocity
 traj_map = {Fax: np.zeros(num_nodes),
             Fay: np.zeros(num_nodes),
-            Ta: np.zeros(num_nodes),
-            v_sled: sled_velocity}
+            v_sled: sled_velocity,
+            Ta: np.zeros(num_nodes)
+            }
 
 #Add Bounds
 bounds = {
-    h: (0.001, 0.1),
-    delt: (0.0, 10.0),
     qax: (-10.0, 10.0),
     qay: (0.5, 1.5),
     qa: np.deg2rad((-60.0, 60.0)),
@@ -84,21 +79,10 @@ bounds.update({k: (-np.deg2rad(400.0), np.deg2rad(400.0))
 bounds.update({k: (-100.0, 100.0)
                for k in [Tb, Tc, Td, Te, Tf, Tg, Th]})
 
-#Load initial guess (also used for initial conditions)
-fname = f'stand_50_nodes_good.csv'
-initial_guess = np.loadtxt(fname)
-
-#parse out the initial conditions
-x_IG, r_IG, _, _ = parse_free(initial_guess,num_states,len(specified)-4,num_nodes,True)
-
-initial_state = x_IG[:,0]
-initial_specified = r_IG[:,0]
-
 #Set initial condition constraints
 instance_constraints = (
-    delt.func(0*h) - 0.0,
     qax.func(0*h) - 0.0,
-    qay.func(0*h) - initial_state[1],
+    qay.func(0*h) - 1.24,
     qa.func(0*h) - 0.0,
     qb.func(0*h) - 0.0,
     qc.func(0*h) - 0.0,
@@ -116,11 +100,11 @@ instance_constraints = (
     ue.func(0*h) - 0.0,
     uf.func(0*h) - 0.0,
     ug.func(0*h) - 0.0,
-    uh.func(0*h) - 0.0,
+    uh.func(0*h) - 0.0
 )
 
 
-objective = sm.Integral(Tb**2 + Tc**2 + Td**2 + Te**2 + Tf**2 + Tg**2 + Th**2,time_symbol)
+objective = sm.Integral(qax**2 + (qay-1.24)**2 + qa**2 + qb**2 + qc**2 + qd**2 + qe**2 + qf**2 + qg**2 + qh**2,time_symbol)
 
 state_symbols = (qax, qay, qa, qb, qc, qd, qe, qf, qg, qh,
                  uax, uay, ua, ub, uc, ud, ue, uf, ug, uh)
@@ -128,13 +112,15 @@ specified_symbols = (Tb, Tc, Td, Te, Tf, Tg, Th)
 
 sm.pprint(objective)
 
-obj, obj_grad = create_objective_function(objective,
-                                          state_symbols,
-                                          specified_symbols,
-                                          [],
-                                          num_nodes,
-                                          h,
-                                          time_symbol=time_symbol)
+obj, obj_grad = create_objective_function(objective=objective,
+                                          state_symbols=state_symbols,
+                                          unknown_input_trajectories=specified_symbols, 
+                                          unknown_parameters=tuple(),
+                                          num_collocation_nodes=num_nodes,
+                                          node_time_interval=h,
+                                          time_symbol=time_symbol,
+                                          integration_method='midpoint')
+
 
 #Create the problem
 prob = Problem(
@@ -148,19 +134,22 @@ prob = Problem(
     known_trajectory_map=traj_map,
     instance_constraints=instance_constraints,
     bounds=bounds,
-    integration_method='backward euler',
+    integration_method='midpoint',
     time_symbol=time_symbol,
-    parallel=True    
+    parallel=True
 )
+
+prob.max_iter = 10000
     
+initial_guess = np.zeros(prob.num_free)
 
 #Optimize
 solution, info = prob.solve(initial_guess)
 
 #Pull out solution trajectory
-xs, rs, _, h_val = prob.parse_free(solution)
+xs, rs, _ = prob.parse_free(solution)
 
-times = np.linspace(0.0, (num_nodes - 1)*h_val, num=num_nodes)
+times = np.linspace(0.0, (num_nodes - 1)*h, num=num_nodes)
 if info['status'] in (0, 1):
     np.savetxt(f'perturb_{num_nodes}_nodes_solution.csv', solution,
                fmt='%.2f')
@@ -232,7 +221,7 @@ def animate(fname='animation.gif'):
     ax.set_aspect('equal')
 
     ani = scene.animate(lambda i: gait_cycle[:, i], frames=len(times),
-                        interval=h_val*1000)
-    ani.save(fname, fps=int(1/h_val))
+                        interval=h*1000)
+    ani.save(fname, fps=int(1/h))
 
 animation = animate('perturb.gif')

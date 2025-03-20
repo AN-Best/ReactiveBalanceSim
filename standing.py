@@ -14,12 +14,8 @@ import os
     derive.derive_equations_of_motion()
 
 eom = f_minus_ma(mass_matrix,forcing_vector,coordinates+speeds)
-print(sm.count_ops(eom))
 
-delt = sm.Function('delt', real=True)(time_symbol)
-eom = eom.col_join(sm.Matrix([delt.diff(time_symbol) - 1]))
-
-states = coordinates + speeds + [delt]
+states = coordinates + speeds
 num_states = len(states)
 
 #Pull in the Constants
@@ -28,7 +24,7 @@ par_map = derive.load_constants(constants,'example_constants.yml')
 #Discretization characteristics
 speed = 0.0 # m/s
 num_nodes = 50
-h = sm.symbols('h', real=True, positive=True)
+h = 0.1
 duration = (num_nodes - 1)*h
 
 #Pull out the coordinates and speeds
@@ -54,8 +50,6 @@ traj_map = {Fax: np.zeros(num_nodes),
 
 #Add Bounds
 bounds = {
-    h: (0.1, 0.1),
-    delt: (0.0, 10.0),
     qax: (0.0, 0.0),
     qay: (0.5, 2.0),
     qa: np.deg2rad((0.0, 0.0)),
@@ -85,9 +79,8 @@ bounds.update({k: (-100.0, 100.0)
 #Instance Constraints
 
 instance_constraints = (
-    delt.func(0*h) - 0.0,
     qax.func(0*h) - 0.0,
-    qax.func(duration) - speed*delt.func(duration),
+    qax.func(duration) - speed*duration,
     qay.func(0*h) - qay.func(duration),
     qa.func(0*h) - qa.func(duration),
     qb.func(0*h) - qb.func(duration),
@@ -113,15 +106,14 @@ instance_constraints = (
 #Objective function and gradient
 def obj(free):
     """Minimize the sum of the squares of the control torques."""
-    T, h = free[num_states*num_nodes:-1], free[-1]
+    T = free[num_states*num_nodes:]
     return h*np.sum(T**2)
 
 
 def obj_grad(free):
-    T, h = free[num_states*num_nodes:-1], free[-1]
+    T = free[num_states*num_nodes:]
     grad = np.zeros_like(free)
-    grad[num_states*num_nodes:-1] = 2.0*h*T
-    grad[-1] = np.sum(T**2)
+    grad[num_states*num_nodes:] = 2.0*h*T
     return grad
 
 #Create the problem
@@ -150,9 +142,9 @@ initial_guess = np.ones(prob.num_free)
 solution, info = prob.solve(initial_guess)
 
 #Pull out solution trajectory
-xs, rs, _, h_val= prob.parse_free(solution)
+xs, rs, _, = prob.parse_free(solution)
 
-times = np.linspace(0.0, (num_nodes - 1)*h_val, num=num_nodes)
+times = np.linspace(0.0, (num_nodes - 1)*h, num=num_nodes)
 if info['status'] in (0, 1):
     np.savetxt(f'stand_{num_nodes}_nodes_solution.csv', solution,
                fmt='%.2f')
@@ -223,7 +215,7 @@ def animate(fname='animation.gif'):
     ax.set_aspect('equal')
 
     ani = scene.animate(lambda i: gait_cycle[:, i], frames=len(times),
-                        interval=h_val*1000)
-    ani.save(fname, fps=int(1/h_val))
+                        interval=h*1000)
+    ani.save(fname, fps=int(1/h))
 
 animation = animate('quiet_stance.gif')
