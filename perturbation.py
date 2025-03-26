@@ -104,7 +104,7 @@ instance_constraints = (
 )
 
 
-objective = sm.Integral(qax**2 + (qay-1.24)**2 + qa**2 + qb**2 + qc**2 + qd**2 + qe**2 + qf**2 + qg**2 + qh**2,time_symbol)
+objective = sm.Integral(qax**2 + (qay-1.24)**2 + qa**2,time_symbol)
 
 state_symbols = (qax, qay, qa, qb, qc, qd, qe, qf, qg, qh,
                  uax, uay, ua, ub, uc, ud, ue, uf, ug, uh)
@@ -139,9 +139,9 @@ prob = Problem(
     parallel=True
 )
 
-prob.max_iter = 10000
+prob.add_option('max_iter',10000)
     
-initial_guess = np.zeros(prob.num_free)
+initial_guess = np.ones(prob.num_free)
 
 #Optimize
 solution, info = prob.solve(initial_guess)
