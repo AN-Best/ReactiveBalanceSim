@@ -22,7 +22,7 @@ states = coordinates + speeds
 num_states = len(states)
 
 #Discretization characteristics
-duration = 2.0
+duration = 1.0
 h = 0.005
 num_nodes = int(duration/h) + 1
 
@@ -39,16 +39,11 @@ num_nodes = int(duration/h) + 1
 #h = left ankle 
 qax, qay, qa, qb, qc, qd, qe, qf, qg, qh = coordinates
 uax, uay, ua, ub, uc, ud, ue, uf, ug, uh = speeds
-Fax, Fay,v_sled , Ta, Tb, Tc, Td, Te, Tf, Tg, Th = specified
-
-#Create sled velocity
-sled_velocity = np.zeros(num_nodes)
-sled_velocity = np.linspace(0,-0.5,num_nodes)
+Fax, Fay, v_sled, Ta, Tb, Tc, Td, Te, Tf, Tg, Th = specified
 
 #Set external torso force and torque to zero and add sled velocity
 traj_map = {Fax: np.zeros(num_nodes),
             Fay: np.zeros(num_nodes),
-            v_sled: sled_velocity,
             Ta: np.zeros(num_nodes)
             }
 
@@ -59,6 +54,7 @@ bounds = {
     qa: np.deg2rad((-60.0, 60.0)),
     uax: (-10.0, 10.0),
     uay: (-10.0, 10.0),
+    v_sled: (np.linspace(0,0.3,num_nodes),np.linspace(0,0.3,num_nodes))
 }
 #lumbar
 bounds.update({k: (-np.deg2rad(30.0), np.deg2rad(30.0))
@@ -78,6 +74,7 @@ bounds.update({k: (-np.deg2rad(400.0), np.deg2rad(400.0))
 # all joint torques
 bounds.update({k: (-100.0, 100.0)
                for k in [Tb, Tc, Td, Te, Tf, Tg, Th]})
+
 
 #Set initial condition constraints
 instance_constraints = (
@@ -100,15 +97,14 @@ instance_constraints = (
     ue.func(0*h) - 0.0,
     uf.func(0*h) - 0.0,
     ug.func(0*h) - 0.0,
-    uh.func(0*h) - 0.0
+    uh.func(0*h) - 0.0,
 )
 
-
-objective = sm.Integral(qax**2 + (qay-1.24)**2 + qa**2,time_symbol)
+objective = sm.Integral((uax-v_sled)**2,time_symbol)
 
 state_symbols = (qax, qay, qa, qb, qc, qd, qe, qf, qg, qh,
                  uax, uay, ua, ub, uc, ud, ue, uf, ug, uh)
-specified_symbols = (Tb, Tc, Td, Te, Tf, Tg, Th)
+specified_symbols = (v_sled,Tb, Tc, Td, Te, Tf, Tg, Th)
 
 sm.pprint(objective)
 
@@ -141,7 +137,8 @@ prob = Problem(
 
 prob.add_option('max_iter',10000)
     
-initial_guess = np.ones(prob.num_free)
+initial_guess = np.zeros(prob.num_free)
+initial_guess[1] = 1.24
 
 #Optimize
 solution, info = prob.solve(initial_guess)
