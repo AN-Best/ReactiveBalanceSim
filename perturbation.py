@@ -22,7 +22,7 @@ states = coordinates + speeds
 num_states = len(states)
 
 #Discretization characteristics
-duration = 1.0
+duration = 2.0
 h = 0.005
 num_nodes = int(duration/h) + 1
 
@@ -30,8 +30,7 @@ num_nodes = int(duration/h) + 1
 #ax = lumbar x
 #ay = lumbar y
 #a = absolute torso rotation
-#b = lumbar 
-#c = right hip 
+#b = lumbar = right hip 
 #d = right knee 
 #e = right ankle 
 #f = left hip 
@@ -42,8 +41,11 @@ uax, uay, ua, ub, uc, ud, ue, uf, ug, uh = speeds
 Fax, Fay, v_sled, Ta, Tb, Tc, Td, Te, Tf, Tg, Th = specified
 
 #Set external torso force and torque to zero and add sled velocity
+max_speed = 0.5
+sled_velocity = np.linspace(0,max_speed,num_nodes)
 traj_map = {Fax: np.zeros(num_nodes),
             Fay: np.zeros(num_nodes),
+            v_sled: sled_velocity,
             Ta: np.zeros(num_nodes)
             }
 
@@ -54,7 +56,6 @@ bounds = {
     qa: np.deg2rad((-60.0, 60.0)),
     uax: (-10.0, 10.0),
     uay: (-10.0, 10.0),
-    v_sled: (np.linspace(0,0.3,num_nodes),np.linspace(0,0.3,num_nodes))
 }
 #lumbar
 bounds.update({k: (-np.deg2rad(30.0), np.deg2rad(30.0))
@@ -100,23 +101,41 @@ instance_constraints = (
     uh.func(0*h) - 0.0,
 )
 
-objective = sm.Integral((uax-v_sled)**2,time_symbol)
+#Objective Function
+def obj(free):
+    #Unpack free variable
+    xs, _, _ = parse_free(free,num_states,len(specified)-4,num_nodes,variable_duration=False)
+    uax = xs[10,:]
 
-state_symbols = (qax, qay, qa, qb, qc, qd, qe, qf, qg, qh,
-                 uax, uay, ua, ub, uc, ud, ue, uf, ug, uh)
-specified_symbols = (v_sled,Tb, Tc, Td, Te, Tf, Tg, Th)
+    #Compute the objective function
+    J = np.sum((uax-sled_velocity)**2.0)
 
-sm.pprint(objective)
+    return J
 
-obj, obj_grad = create_objective_function(objective=objective,
-                                          state_symbols=state_symbols,
-                                          unknown_input_trajectories=specified_symbols, 
-                                          unknown_parameters=tuple(),
-                                          num_collocation_nodes=num_nodes,
-                                          node_time_interval=h,
-                                          time_symbol=time_symbol,
-                                          integration_method='midpoint')
+def obj_grad(free):
+    #Unpack free variable
+    xs, _, _ = parse_free(free,num_states,len(specified)-4,num_nodes,variable_duration=False)
+    
+    #sort into states
+    uax = xs[10,:]
 
+    #Gradient
+    dJduax = 2.0*uax - 2.0*sled_velocity
+
+    #Repack
+    grad_xs = np.zeros((num_states,num_nodes))
+    grad_rs = np.zeros((len(specified)-4,num_nodes))
+
+    grad_xs[10,:] = dJduax
+
+    # Flatten grad_xs and grad_rs into 1D arrays
+    xs_line = grad_xs.flatten()
+    rs_line = grad_rs.flatten()
+
+    # Concatenate xs_line and rs_line into a single 1D array
+    grad = np.concatenate((xs_line, rs_line))
+
+    return grad
 
 #Create the problem
 prob = Problem(
@@ -138,7 +157,10 @@ prob = Problem(
 prob.add_option('max_iter',10000)
     
 initial_guess = np.zeros(prob.num_free)
-initial_guess[1] = 1.24
+initial_guess[num_nodes:2*num_nodes] = 1.24
+
+print(prob.num_free)
+
 
 #Optimize
 solution, info = prob.solve(initial_guess)
